@@ -9,6 +9,15 @@ if (file_exists($maintenance = __DIR__.'/../storage/framework/maintenance.php'))
     require $maintenance;
 }
 
+$dbPath = getenv('DB_DATABASE') ?: '';
+if ($dbPath && !file_exists($dbPath) && str_starts_with($dbPath, '/tmp/')) {
+    $dir = dirname($dbPath);
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
+    }
+    touch($dbPath);
+}
+
 require __DIR__.'/../vendor/autoload.php';
 
 $app = require_once __DIR__.'/../bootstrap/app.php';
