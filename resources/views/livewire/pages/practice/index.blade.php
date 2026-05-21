@@ -39,11 +39,10 @@ new #[Layout('layouts.app')] class extends Component {
 
         if ($rating === 'easy') {
             $this->currentWord->update(['status' => 'mastered']);
+            $this->reviewed++;
         }
 
         StudyLog::logStudy(Auth::id());
-        $this->reviewed++;
-
         $this->loadNext();
     }
 
@@ -60,81 +59,117 @@ new #[Layout('layouts.app')] class extends Component {
     }
 }; ?>
 
-<div class="py-12">
+<div class="py-8 sm:py-12">
     <div class="max-w-2xl mx-auto sm:px-6 lg:px-8 space-y-6">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Practice Arena') }}
-        </h2>
 
         @if ($done)
-            <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-8 border border-gray-200 dark:border-gray-700 text-center">
-                <p class="text-2xl mb-2">🎉</p>
-                <p class="text-lg font-semibold text-gray-800 dark:text-gray-200">All caught up!</p>
-                <p class="text-gray-500 dark:text-gray-400 mt-1">No words waiting for practice.</p>
-                <div class="mt-4 flex justify-center gap-3">
+            <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200 dark:border-gray-700 text-center">
+                <p class="text-5xl mb-4">🎉</p>
+                <p class="text-xl font-bold text-gray-800 dark:text-gray-200">All caught up!</p>
+                <p class="text-gray-500 dark:text-gray-400 mt-2">No words waiting for practice right now.</p>
+                <div class="mt-6 flex justify-center gap-3">
                     <a href="{{ route('words.read') }}" wire:navigate
-                       class="px-4 py-2 bg-blue-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 transition">
-                        Read More Words
+                       class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-sm text-white transition">
+                        Read Words
                     </a>
                     <a href="{{ route('dashboard') }}" wire:navigate
-                       class="px-4 py-2 bg-gray-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-gray-500 transition">
+                       class="px-6 py-2.5 bg-gray-600 hover:bg-gray-500 rounded-xl font-semibold text-sm text-white transition">
                         Dashboard
                     </a>
                 </div>
             </div>
+
         @elseif ($currentWord)
             <div x-data="{ flipped: false }">
-                <div class="text-center text-sm text-gray-500 dark:text-gray-400 mb-2">
-                    {{ $reviewed }} reviewed · {{ $total }} remaining
+
+                {{-- Progress bar --}}
+                <div class="flex items-center gap-3">
+                    <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                        <div class="h-full rounded-full transition-all duration-500 ease-out"
+                             style="width: {{ $total > 0 ? (($reviewed) / max($reviewed + $total, 1)) * 100 : 0 }}%;
+                                    background: linear-gradient(90deg, #6366f1, #a855f7);"></div>
+                    </div>
+                    <span class="text-sm text-gray-500 dark:text-gray-400 font-medium tabular-nums whitespace-nowrap">
+                        <span class="hidden sm:inline">Mastered </span>{{ $reviewed }}/{{ $reviewed + $total }}
+                    </span>
                 </div>
 
+                {{-- Card --}}
                 <div @click="flipped = true"
-                     class="w-full cursor-pointer select-none bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-xl"
-                     style="min-height: 280px;">
-                    <div x-show="!flipped" class="text-center">
-                        <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                     class="relative w-full cursor-pointer select-none bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 sm:p-12 flex flex-col items-center justify-center transition-shadow hover:shadow-xl min-h-[260px] sm:min-h-[300px] mt-4">
+
+                    {{-- Front --}}
+                    <div x-show="!flipped" class="text-center w-full">
+                        <p class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-relaxed">
                             {{ $currentWord->english_word }}
                         </p>
-                        <p class="text-sm text-gray-400 dark:text-gray-500">Tap to reveal meaning</p>
+                        <p class="text-sm text-gray-400 dark:text-gray-500 mt-6">Tap to reveal meaning</p>
                     </div>
-                    <div x-show="flipped" class="text-center">
-                        <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-4">
+
+                    {{-- Back --}}
+                    <div x-show="flipped" class="text-center w-full">
+                        <p class="text-lg sm:text-xl font-medium text-gray-500 dark:text-gray-400 mb-2">
                             {{ $currentWord->english_word }}
                         </p>
-                        <p class="text-2xl text-gray-700 dark:text-gray-300">
+                        <p class="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 leading-relaxed">
                             {{ $currentWord->bangla_meaning }}
                         </p>
                     </div>
                 </div>
 
-                <div class="flex justify-center gap-3 mt-4">
+                {{-- Toolbar --}}
+                <div class="flex justify-center gap-2 mt-4">
                     <button wire:click="toggleReadLater"
-                            class="px-4 py-3 rounded-xl text-lg {{ $currentWord->read_later ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-purple-500' }} transition">
+                            class="p-2.5 rounded-xl text-lg transition
+                                @if ($currentWord->read_later)
+                                    bg-purple-100 dark:bg-purple-900/30 text-purple-600
+                                @else
+                                    bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-purple-500
+                                @endif">
                         🕐
                     </button>
                     <button wire:click="toggleFavorite"
-                            class="px-4 py-3 rounded-xl text-lg {{ $currentWord->is_favorite ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-500 hover:text-amber-500' }} transition">
+                            class="p-2.5 rounded-xl text-lg transition
+                                @if ($currentWord->is_favorite)
+                                    bg-amber-100 dark:bg-amber-900/30 text-amber-600
+                                @else
+                                    bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-amber-500
+                                @endif">
                         ⭐
                     </button>
                 </div>
 
+                {{-- Rating buttons --}}
                 <template x-if="flipped">
-                    <div class="flex justify-center gap-4 mt-6">
+                    <div class="flex justify-center gap-3 mt-6">
                         <button wire:click="rate('hard')"
-                                class="flex-1 max-w-48 px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition">
-                            🔴 Hard — practice again
+                                wire:loading.attr="disabled"
+                                class="flex-1 max-w-44 px-5 py-3.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-semibold rounded-xl transition-all active:scale-[0.97] disabled:opacity-50 text-sm sm:text-base">
+                            <span wire:loading.remove wire:target="rate('hard')">🔴 Hard</span>
+                            <span wire:loading wire:target="rate('hard')" class="inline-flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                Hard
+                            </span>
                         </button>
                         <button wire:click="rate('easy')"
-                                class="flex-1 max-w-48 px-6 py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-semibold rounded-xl transition">
-                            🟢 Easy — I know this
+                                wire:loading.attr="disabled"
+                                class="flex-1 max-w-44 px-5 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-xl transition-all active:scale-[0.97] disabled:opacity-50 text-sm sm:text-base">
+                            <span wire:loading.remove wire:target="rate('easy')">🟢 Easy</span>
+                            <span wire:loading wire:target="rate('easy')" class="inline-flex items-center gap-2">
+                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                Easy
+                            </span>
                         </button>
                     </div>
                 </template>
+
+                {{-- Tap hint --}}
                 <template x-if="!flipped">
-                    <div class="text-center text-sm text-gray-400 dark:text-gray-500 mt-6">
-                        Tap the card to see the meaning
-                    </div>
+                    <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-6">
+                        Tap the card to see the Bangla meaning
+                    </p>
                 </template>
+
             </div>
         @endif
     </div>
