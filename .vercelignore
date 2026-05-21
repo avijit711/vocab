@@ -10,3 +10,4 @@
 .github
 .gitattributes
 .gitignore
+public/index.php
