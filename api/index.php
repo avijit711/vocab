@@ -13,17 +13,16 @@ if ($dbConnection === 'sqlite') {
     }
 }
 
+$tmpDirs = ['/tmp/livewire-tmp'];
 $storagePath = getenv('LARAVEL_STORAGE_PATH') ?: '';
 if ($storagePath && str_starts_with($storagePath, '/tmp/')) {
-    $dirs = [
-        $storagePath,
-        $storagePath.'/framework',
-        $storagePath.'/framework/cache',
-    ];
-    foreach ($dirs as $dir) {
-        if (!is_dir($dir)) {
-            mkdir($dir, 0777, true);
-        }
+    $tmpDirs[] = $storagePath;
+    $tmpDirs[] = $storagePath.'/framework';
+    $tmpDirs[] = $storagePath.'/framework/cache';
+}
+foreach ($tmpDirs as $dir) {
+    if (!is_dir($dir)) {
+        mkdir($dir, 0777, true);
     }
 }
 
