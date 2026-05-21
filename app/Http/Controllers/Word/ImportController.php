@@ -23,9 +23,8 @@ class ImportController extends Controller
         $content = file_get_contents($request->file('file')->getRealPath());
         $lines = explode("\n", $content);
         $userId = Auth::id();
-        $imported = 0;
-        $updated = 0;
 
+        $words = [];
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) continue;
@@ -39,23 +38,32 @@ class ImportController extends Controller
 
             if (empty($english) || empty($bangla)) continue;
 
-            $word = Word::where('user_id', $userId)
-                ->where('english_word', $english)
-                ->first();
-
-            if ($word) {
-                $word->update(['bangla_meaning' => $bangla]);
-                $updated++;
-            } else {
-                Word::create([
-                    'user_id' => $userId,
-                    'english_word' => $english,
-                    'bangla_meaning' => $bangla,
-                    'status' => 'unseen',
-                ]);
-                $imported++;
-            }
+            $words[] = ['english' => $english, 'bangla' => $bangla];
         }
+
+        if (empty($words)) {
+            return redirect()->route('words.import')
+                ->with('imported', 0)
+                ->with('updated', 0);
+        }
+
+        $before = Word::where('user_id', $userId)->count();
+
+        $now = now();
+        $rows = array_map(fn ($w) => [
+            'user_id' => $userId,
+            'english_word' => $w['english'],
+            'bangla_meaning' => $w['bangla'],
+            'status' => 'unseen',
+            'created_at' => $now,
+            'updated_at' => $now,
+        ], $words);
+
+        Word::upsert($rows, ['user_id', 'english_word'], ['bangla_meaning', 'updated_at']);
+
+        $after = Word::where('user_id', $userId)->count();
+        $imported = $after - $before;
+        $updated = count($words) - $imported;
 
         return redirect()->route('words.import')
             ->with('imported', $imported)

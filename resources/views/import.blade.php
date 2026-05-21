@@ -1,5 +1,3 @@
-@php use Illuminate\Support\Facades\Session; @endphp
-
 <x-app-layout>
     <div class="py-12">
         <div class="max-w-3xl mx-auto sm:px-6 lg:px-8 space-y-6">
@@ -13,10 +11,12 @@
                     <code class="text-indigo-600 dark:text-indigo-400">English Word - Bangla Meaning</code>
                 </p>
 
-                <form action="{{ route('words.import.store') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('words.import.store') }}" method="POST" enctype="multipart/form-data"
+                      x-data="{ submitting: false }"
+                      @submit="submitting = true">
                     @csrf
                     <div class="flex items-center gap-4">
-                        <input type="file" name="file" accept=".txt"
+                        <input type="file" name="file" accept=".txt" required
                                class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-indigo-900/30 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900/50">
                     </div>
 
@@ -25,9 +25,10 @@
                     @enderror
 
                     <div class="mt-6">
-                        <button type="submit"
-                                class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition">
-                            Import Words
+                        <button type="submit" :disabled="submitting"
+                                class="inline-flex items-center px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-gray-800 transition disabled:opacity-50">
+                            <span x-show="!submitting">Import Words</span>
+                            <span x-show="submitting">Importing...</span>
                         </button>
                     </div>
                 </form>
