@@ -88,32 +88,22 @@ new #[Layout('layouts.app')] class extends Component {
                     {{ $reviewed }} reviewed · {{ $total }} remaining
                 </div>
 
-                <div style="perspective: 1000px;">
-                    <div @click="flipped = true"
-                         class="relative w-full cursor-pointer select-none"
-                         style="min-height: 280px;">
-                        <div class="relative w-full transition-all duration-500 ease-in-out"
-                             :style="flipped
-                                 ? 'transform: rotateY(180deg); min-height: 280px;'
-                                 : 'transform: rotateY(0deg); min-height: 280px;'"
-                             style="transform-style: preserve-3d; min-height: 280px;">
-                            <div class="absolute inset-0 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center"
-                                 style="backface-visibility: hidden; min-height: 280px;">
-                                <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 text-center">
-                                    {{ $currentWord->english_word }}
-                                </p>
-                                <p class="text-sm text-gray-400 dark:text-gray-500">Tap to reveal meaning</p>
-                            </div>
-                            <div class="absolute inset-0 bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center"
-                                 style="backface-visibility: hidden; transform: rotateY(180deg); min-height: 280px;">
-                                <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-4 text-center">
-                                    {{ $currentWord->english_word }}
-                                </p>
-                                <p class="text-2xl text-gray-700 dark:text-gray-300 text-center">
-                                    {{ $currentWord->bangla_meaning }}
-                                </p>
-                            </div>
-                        </div>
+                <div @click="flipped = true"
+                     class="w-full cursor-pointer select-none bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 flex flex-col items-center justify-center transition-all duration-300 hover:shadow-xl"
+                     style="min-height: 280px;">
+                    <div x-show="!flipped" class="text-center">
+                        <p class="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4">
+                            {{ $currentWord->english_word }}
+                        </p>
+                        <p class="text-sm text-gray-400 dark:text-gray-500">Tap to reveal meaning</p>
+                    </div>
+                    <div x-show="flipped" class="text-center">
+                        <p class="text-3xl font-bold text-indigo-600 dark:text-indigo-400 mb-4">
+                            {{ $currentWord->english_word }}
+                        </p>
+                        <p class="text-2xl text-gray-700 dark:text-gray-300">
+                            {{ $currentWord->bangla_meaning }}
+                        </p>
                     </div>
                 </div>
 
