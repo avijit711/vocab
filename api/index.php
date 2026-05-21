@@ -28,3 +28,4 @@ if ($storagePath && str_starts_with($storagePath, '/tmp/')) {
 }
 
 require __DIR__ . '/../public/index.php';
+
