@@ -7,6 +7,7 @@ use Livewire\Volt\Component;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts.app')] class extends Component {
+    public array $wordQueue = [];
     public ?Word $currentWord = null;
     public bool $done = false;
     public int $total = 0;
@@ -14,48 +15,65 @@ new #[Layout('layouts.app')] class extends Component {
 
     public function mount(): void
     {
-        $this->loadNext();
+        $this->refillQueue();
     }
 
-    public function loadNext(): void
+    public function refillQueue(): void
     {
-        $this->currentWord = Word::where('user_id', Auth::id())
+        $words = Word::where('user_id', Auth::id())
             ->whereIn('status', ['learning', 'reviewing'])
             ->inRandomOrder()
-            ->first();
+            ->limit(10)
+            ->get();
 
+        if ($words->isEmpty()) {
+            $this->done = true;
+            return;
+        }
+
+        $this->wordQueue = $words->all();
+        $this->currentWord = $this->wordQueue[0];
         $this->total = Word::where('user_id', Auth::id())
             ->whereIn('status', ['learning', 'reviewing'])
             ->count();
+    }
+
+    public function rate(string $rating): void
+    {
+        if (empty($this->wordQueue)) return;
+
+        $word = $this->wordQueue[0];
+
+        if ($rating === 'easy') {
+            $word->update(['status' => 'mastered']);
+            $this->reviewed++;
+        }
+
+        StudyLog::logStudy(Auth::id());
+
+        array_shift($this->wordQueue);
+
+        if (empty($this->wordQueue)) {
+            $this->refillQueue();
+        } else {
+            $this->currentWord = $this->wordQueue[0];
+        }
 
         if (!$this->currentWord) {
             $this->done = true;
         }
     }
 
-    public function rate(string $rating): void
-    {
-        if (!$this->currentWord) return;
-
-        if ($rating === 'easy') {
-            $this->currentWord->update(['status' => 'mastered']);
-            $this->reviewed++;
-        }
-
-        StudyLog::logStudy(Auth::id());
-        $this->loadNext();
-    }
-
     public function toggleFavorite(): void
     {
-        if (!$this->currentWord) return;
-        $this->currentWord->update(['is_favorite' => !$this->currentWord->is_favorite]);
+        if (empty($this->wordQueue)) return;
+        $this->wordQueue[0]->update(['is_favorite' => !$this->wordQueue[0]->is_favorite]);
     }
 
     public function toggleReadLater(): void
     {
-        if (!$this->currentWord) return;
-        $this->currentWord->update(['read_later' => !$this->currentWord->read_later]);
+        if (empty($this->wordQueue)) return;
+        $this->wordQueue[0]->update(['read_later' => !$this->wordQueue[0]->read_later]);
     }
 }; ?>
 
@@ -80,7 +98,7 @@ new #[Layout('layouts.app')] class extends Component {
             </div>
 
         @elseif ($currentWord)
-            <div x-data="{ flipped: false }">
+            <div x-data="{ flipped: false }" wire:key="practice-{{ $currentWord->id }}">
 
                 {{-- Progress bar --}}
                 <div class="flex items-center gap-3">
