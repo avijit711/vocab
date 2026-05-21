@@ -7,18 +7,17 @@ use Livewire\Volt\Component;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts.app')] class extends Component {
-    public array $wordQueue = [];
-    public ?Word $currentWord = null;
-    public bool $done = false;
-    public int $total = 0;
+    public array $jsQueue = [];
     public int $reviewed = 0;
+    public int $total = 0;
+    public bool $done = false;
 
     public function mount(): void
     {
-        $this->refillQueue();
+        $this->refreshData();
     }
 
-    public function refillQueue(): void
+    public function refreshData(): void
     {
         $words = Word::where('user_id', Auth::id())
             ->whereIn('status', ['learning', 'reviewing'])
@@ -31,18 +30,25 @@ new #[Layout('layouts.app')] class extends Component {
             return;
         }
 
-        $this->wordQueue = $words->all();
-        $this->currentWord = $this->wordQueue[0];
+        $this->jsQueue = $words->map(fn(Word $w) => [
+            'id' => $w->id,
+            'english_word' => $w->english_word,
+            'bangla_meaning' => $w->bangla_meaning,
+            'read_later' => $w->read_later,
+            'is_favorite' => $w->is_favorite,
+        ])->values()->toArray();
+
         $this->total = Word::where('user_id', Auth::id())
             ->whereIn('status', ['learning', 'reviewing'])
             ->count();
+
+        $this->done = false;
     }
 
-    public function rate(string $rating): void
+    public function rate(int $wordId, string $rating): void
     {
-        if (empty($this->wordQueue)) return;
-
-        $word = $this->wordQueue[0];
+        $word = Word::find($wordId);
+        if (!$word) return;
 
         if ($rating === 'easy') {
             $word->update(['status' => 'mastered']);
@@ -50,30 +56,50 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         StudyLog::logStudy(Auth::id());
+    }
 
-        array_shift($this->wordQueue);
+    public function refill(): void
+    {
+        $words = Word::where('user_id', Auth::id())
+            ->whereIn('status', ['learning', 'reviewing'])
+            ->inRandomOrder()
+            ->limit(10)
+            ->get();
 
-        if (empty($this->wordQueue)) {
-            $this->refillQueue();
-        } else {
-            $this->currentWord = $this->wordQueue[0];
-        }
+        $this->total = Word::where('user_id', Auth::id())
+            ->whereIn('status', ['learning', 'reviewing'])
+            ->count();
 
-        if (!$this->currentWord) {
+        if ($words->isEmpty()) {
             $this->done = true;
+            $this->jsQueue = [];
+            $this->dispatch('queue-refilled', words: [], total: $this->total, done: true);
+            return;
         }
+
+        $this->jsQueue = $words->map(fn(Word $w) => [
+            'id' => $w->id,
+            'english_word' => $w->english_word,
+            'bangla_meaning' => $w->bangla_meaning,
+            'read_later' => $w->read_later,
+            'is_favorite' => $w->is_favorite,
+        ])->values()->toArray();
+
+        $this->done = false;
+
+        $this->dispatch('queue-refilled', words: $this->jsQueue, total: $this->total, done: false);
     }
 
-    public function toggleFavorite(): void
+    public function toggleFavorite(int $wordId): void
     {
-        if (empty($this->wordQueue)) return;
-        $this->wordQueue[0]->update(['is_favorite' => !$this->wordQueue[0]->is_favorite]);
+        $word = Word::find($wordId);
+        if ($word) $word->update(['is_favorite' => !$word->is_favorite]);
     }
 
-    public function toggleReadLater(): void
+    public function toggleReadLater(int $wordId): void
     {
-        if (empty($this->wordQueue)) return;
-        $this->wordQueue[0]->update(['read_later' => !$this->wordQueue[0]->read_later]);
+        $word = Word::find($wordId);
+        if ($word) $word->update(['read_later' => !$word->read_later]);
     }
 }; ?>
 
@@ -86,106 +112,179 @@ new #[Layout('layouts.app')] class extends Component {
                 <p class="text-xl font-bold text-gray-800 dark:text-gray-200">All caught up!</p>
                 <p class="text-gray-500 dark:text-gray-400 mt-2">No words waiting for practice right now.</p>
                 <div class="mt-6 flex justify-center gap-3">
-                    <a href="{{ route('words.read') }}" wire:navigate
+                    <a href="{{ route('words.read') }}"
                        class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-sm text-white transition">
                         Read Words
                     </a>
-                    <a href="{{ route('dashboard') }}" wire:navigate
+                    <a href="{{ route('dashboard') }}"
                        class="px-6 py-2.5 bg-gray-600 hover:bg-gray-500 rounded-xl font-semibold text-sm text-white transition">
                         Dashboard
                     </a>
                 </div>
             </div>
 
-        @elseif ($currentWord)
-            <div x-data="{ flipped: false }" wire:key="practice-{{ $currentWord->id }}">
+        @elseif (!empty($jsQueue))
+            <div wire:key="practice-arena"
+                 x-data="{
+                    queue: [],
+                    currentWord: null,
+                    reviewed: 0,
+                    total: 0,
+                    flipped: false,
+                    loading: false,
+
+                    init() {
+                        this.queue = @js($jsQueue);
+                        this.reviewed = {{ $reviewed }};
+                        this.total = {{ $total }};
+                        this.nextWord();
+
+                        $wire.on('queue-refilled', (data) => {
+                            if (data.done) {
+                                this.currentWord = null;
+                                this.queue = [];
+                                this.loading = false;
+                                return;
+                            }
+                            this.queue = [...this.queue, ...data.words];
+                            this.total = data.total;
+                            if (!this.currentWord && this.queue.length) {
+                                this.nextWord();
+                            }
+                            this.loading = false;
+                        });
+                    },
+
+                    nextWord() {
+                        if (this.queue.length === 0) {
+                            if (this.currentWord) {
+                                this.currentWord = null;
+                            }
+                            return;
+                        }
+                        this.currentWord = this.queue.shift();
+                        this.flipped = false;
+                        if (this.queue.length < 3) {
+                            this.refillQueue();
+                        }
+                    },
+
+                    rate(rating) {
+                        if (!this.currentWord) return;
+                        const word = this.currentWord;
+                        if (rating === 'easy') this.reviewed++;
+                        this.nextWord();
+                        $wire.rate(word.id, rating);
+                    },
+
+                    refillQueue() {
+                        if (this.loading) return;
+                        this.loading = true;
+                        $wire.refill();
+                    },
+
+                    toggleFavorite() {
+                        if (!this.currentWord) return;
+                        this.currentWord.is_favorite = !this.currentWord.is_favorite;
+                        $wire.toggleFavorite(this.currentWord.id);
+                    },
+
+                    toggleReadLater() {
+                        if (!this.currentWord) return;
+                        this.currentWord.read_later = !this.currentWord.read_later;
+                        $wire.toggleReadLater(this.currentWord.id);
+                    },
+                 }" wire:ignore>
 
                 {{-- Progress bar --}}
                 <div class="flex items-center gap-3">
                     <div class="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                         <div class="h-full rounded-full transition-all duration-500 ease-out"
-                             style="width: {{ $total > 0 ? (($reviewed) / max($reviewed + $total, 1)) * 100 : 0 }}%;
-                                    background: linear-gradient(90deg, #6366f1, #a855f7);"></div>
+                             :style="`width: ${total > 0 ? (reviewed / Math.max(reviewed + total, 1)) * 100 : 0}%; background: linear-gradient(90deg, #6366f1, #a855f7);`"></div>
                     </div>
                     <span class="text-sm text-gray-500 dark:text-gray-400 font-medium tabular-nums whitespace-nowrap">
-                        <span class="hidden sm:inline">Mastered </span>{{ $reviewed }}/{{ $reviewed + $total }}
+                        <span class="hidden sm:inline">Mastered </span><span x-text="reviewed"></span>/<span x-text="reviewed + total"></span>
                     </span>
                 </div>
 
-                {{-- Card --}}
-                <div @click="flipped = true"
-                     class="relative w-full cursor-pointer select-none bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 sm:p-12 flex flex-col items-center justify-center transition-shadow hover:shadow-xl min-h-[260px] sm:min-h-[300px] mt-4">
-
-                    {{-- Front --}}
-                    <div x-show="!flipped" class="text-center w-full">
-                        <p class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-relaxed">
-                            {{ $currentWord->english_word }}
-                        </p>
-                        <p class="text-sm text-gray-400 dark:text-gray-500 mt-6">Tap to reveal meaning</p>
-                    </div>
-
-                    {{-- Back --}}
-                    <div x-show="flipped" class="text-center w-full">
-                        <p class="text-lg sm:text-xl font-medium text-gray-500 dark:text-gray-400 mb-2">
-                            {{ $currentWord->english_word }}
-                        </p>
-                        <p class="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 leading-relaxed">
-                            {{ $currentWord->bangla_meaning }}
-                        </p>
-                    </div>
-                </div>
-
-                {{-- Toolbar --}}
-                <div class="flex justify-center gap-2 mt-4">
-                    <button wire:click="toggleReadLater"
-                            class="p-2.5 rounded-xl text-lg transition
-                                @if ($currentWord->read_later)
-                                    bg-purple-100 dark:bg-purple-900/30 text-purple-600
-                                @else
-                                    bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-purple-500
-                                @endif">
-                        🕐
-                    </button>
-                    <button wire:click="toggleFavorite"
-                            class="p-2.5 rounded-xl text-lg transition
-                                @if ($currentWord->is_favorite)
-                                    bg-amber-100 dark:bg-amber-900/30 text-amber-600
-                                @else
-                                    bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-amber-500
-                                @endif">
-                        ⭐
-                    </button>
-                </div>
-
-                {{-- Rating buttons --}}
-                <template x-if="flipped">
-                    <div class="flex justify-center gap-3 mt-6">
-                        <button wire:click="rate('hard')"
-                                wire:loading.attr="disabled"
-                                class="flex-1 max-w-44 px-5 py-3.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-semibold rounded-xl transition-all active:scale-[0.97] disabled:opacity-50 text-sm sm:text-base">
-                            <span wire:loading.remove wire:target="rate('hard')">🔴 Hard</span>
-                            <span wire:loading wire:target="rate('hard')" class="inline-flex items-center gap-2">
-                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                Hard
-                            </span>
-                        </button>
-                        <button wire:click="rate('easy')"
-                                wire:loading.attr="disabled"
-                                class="flex-1 max-w-44 px-5 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-xl transition-all active:scale-[0.97] disabled:opacity-50 text-sm sm:text-base">
-                            <span wire:loading.remove wire:target="rate('easy')">🟢 Easy</span>
-                            <span wire:loading wire:target="rate('easy')" class="inline-flex items-center gap-2">
-                                <svg class="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" fill="none"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                Easy
-                            </span>
-                        </button>
+                {{-- Done state (client-side) --}}
+                <template x-if="!currentWord && !loading">
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 border border-gray-200 dark:border-gray-700 text-center mt-4">
+                        <p class="text-5xl mb-4">🎉</p>
+                        <p class="text-xl font-bold text-gray-800 dark:text-gray-200">All caught up!</p>
+                        <p class="text-gray-500 dark:text-gray-400 mt-2">No words waiting for practice right now.</p>
+                        <div class="mt-6 flex justify-center gap-3">
+                            <a href="{{ route('words.read') }}" class="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-sm text-white transition">Read Words</a>
+                            <a href="{{ route('dashboard') }}" class="px-6 py-2.5 bg-gray-600 hover:bg-gray-500 rounded-xl font-semibold text-sm text-white transition">Dashboard</a>
+                        </div>
                     </div>
                 </template>
 
-                {{-- Tap hint --}}
-                <template x-if="!flipped">
-                    <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-6">
-                        Tap the card to see the Bangla meaning
-                    </p>
+                {{-- Loading skeleton --}}
+                <template x-if="!currentWord && loading">
+                    <div class="w-full bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 sm:p-12 flex flex-col items-center justify-center min-h-[260px] sm:min-h-[300px] mt-4 animate-pulse">
+                        <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded w-3/4 mb-6"></div>
+                        <div class="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
+                    </div>
+                </template>
+
+                {{-- Card --}}
+                <template x-if="currentWord">
+                    <div>
+                        <div @click="flipped = true"
+                             class="w-full cursor-pointer select-none bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 p-8 sm:p-12 flex flex-col items-center justify-center transition-shadow hover:shadow-xl min-h-[260px] sm:min-h-[300px] mt-4">
+
+                            {{-- Front --}}
+                            <div x-show="!flipped" class="text-center w-full">
+                                <p class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 leading-relaxed"
+                                   x-text="currentWord.english_word"></p>
+                                <p class="text-sm text-gray-400 dark:text-gray-500 mt-6">Tap to reveal meaning</p>
+                            </div>
+
+                            {{-- Back --}}
+                            <div x-show="flipped" class="text-center w-full">
+                                <p class="text-lg sm:text-xl font-medium text-gray-500 dark:text-gray-400 mb-2"
+                                   x-text="currentWord.english_word"></p>
+                                <p class="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 leading-relaxed"
+                                   x-text="currentWord.bangla_meaning"></p>
+                            </div>
+                        </div>
+
+                        {{-- Toolbar --}}
+                        <div class="flex justify-center gap-2 mt-4">
+                            <button @click="toggleReadLater()"
+                                    class="p-2.5 rounded-xl text-lg transition"
+                                    :class="currentWord.read_later ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-purple-500'">
+                                🕐
+                            </button>
+                            <button @click="toggleFavorite()"
+                                    class="p-2.5 rounded-xl text-lg transition"
+                                    :class="currentWord.is_favorite ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600' : 'bg-gray-100 dark:bg-gray-700 text-gray-400 hover:text-amber-500'">
+                                ⭐
+                            </button>
+                        </div>
+
+                        {{-- Rating buttons --}}
+                        <template x-if="flipped">
+                            <div class="flex justify-center gap-3 mt-6">
+                                <button @click="rate('hard')"
+                                        class="flex-1 max-w-44 px-5 py-3.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-semibold rounded-xl transition-all active:scale-[0.97] text-sm sm:text-base">
+                                    🔴 Hard
+                                </button>
+                                <button @click="rate('easy')"
+                                        class="flex-1 max-w-44 px-5 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-xl transition-all active:scale-[0.97] text-sm sm:text-base">
+                                    🟢 Easy
+                                </button>
+                            </div>
+                        </template>
+
+                        {{-- Tap hint --}}
+                        <template x-if="!flipped">
+                            <p class="text-center text-sm text-gray-400 dark:text-gray-500 mt-6">
+                                Tap the card to see the Bangla meaning
+                            </p>
+                        </template>
+                    </div>
                 </template>
 
             </div>
