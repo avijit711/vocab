@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#1e1b4b">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>VocabMaster</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="icons/icon-192.svg">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>tailwind.config={darkMode:'class',theme:{extend:{}}}</script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    html, body { overscroll-behavior: none; height: 100%; }
+    .card-perspective { perspective: 1000px; }
+    .card-flipper { transition: transform 0.4s ease; transform-style: preserve-3d; }
+    .card-flipper.flipped { transform: rotateY(180deg); }
+    .card-face { backface-visibility: hidden; position: absolute; inset: 0; }
+    .card-back { transform: rotateY(180deg); }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fadeIn 0.2s ease-out; }
+    .hide-scrollbar::-webkit-scrollbar { display: none; }
+    .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="font-sans antialiased bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 h-full">
+
+<div x-data="app()" x-init="init()" class="h-full flex flex-col max-w-lg mx-auto">
+
+  <!-- Header -->
+  <header class="sticky top-0 z-30 bg-gray-50/90 dark:bg-gray-950/90 backdrop-blur-lg border-b border-gray-200 dark:border-gray-800 px-4 py-3 shrink-0">
+    <div class="flex items-center justify-between">
+      <h1 class="text-lg font-bold" x-text="headerTitle"></h1>
+      <span class="text-xs text-gray-400" x-show="view==='practice'&&!practiceDone" x-text="practiceQueue.length+(practiceCurrent?1:0)+' left'"></span>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <main class="flex-1 overflow-y-auto hide-scrollbar px-4 pb-28 pt-4">
+    <template x-if="!loading">
+      <div class="fade-in">
+
+        <!-- ==================== DASHBOARD ==================== -->
+        <div x-show="view==='dashboard'">
+          <div class="grid grid-cols-3 gap-3 mb-6">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-4 text-center shadow-sm border border-gray-200 dark:border-gray-800">
+              <p class="text-2xl font-bold text-indigo-600 dark:text-indigo-400" x-text="stats.total"></p>
+              <p class="text-xs text-gray-500 mt-1">Words</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-4 text-center shadow-sm border border-gray-200 dark:border-gray-800">
+              <p class="text-2xl font-bold text-emerald-600 dark:text-emerald-400" x-text="stats.mastered"></p>
+              <p class="text-xs text-gray-500 mt-1">Known</p>
+            </div>
+            <div class="bg-white dark:bg-gray-900 rounded-2xl p-4 text-center shadow-sm border border-gray-200 dark:border-gray-800">
+              <p class="text-2xl font-bold text-amber-600 dark:text-amber-400" x-text="stats.learning"></p>
+              <p class="text-xs text-gray-500 mt-1">Learning</p>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3 mb-6">
+            <div class="flex-1 bg-gray-200 dark:bg-gray-800 rounded-full h-3 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-700 ease-out"
+                   :style="'width:'+(stats.total?(stats.mastered/stats.total*100):0)+'%;background:linear-gradient(90deg,#6366f1,#a855f7)'"></div>
+            </div>
+            <span class="text-sm font-medium tabular-nums" x-text="stats.mastered+'/'+stats.total"></span>
+          </div>
+
+          <div class="bg-white dark:bg-gray-900 rounded-2xl p-5 shadow-sm border border-gray-200 dark:border-gray-800 mb-6 flex items-center gap-4">
+            <span class="text-3xl">🔥</span>
+            <div><p class="text-xl font-bold" x-text="stats.streak+' day streak'"></p><p class="text-sm text-gray-500" x-text="stats.todayReviewed+' reviewed today'"></p></div>
+          </div>
+
+          <div class="grid grid-cols-2 gap-3">
+            <button @click="switchView('practice')" class="bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl py-5 font-semibold text-center transition active:scale-[0.97] shadow-lg shadow-indigo-600/20"><span class="block text-2xl mb-1">🎴</span>Practice</button>
+            <button @click="switchView('read')" class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-5 font-semibold text-center transition active:scale-[0.97]"><span class="block text-2xl mb-1">📖</span>Read</button>
+            <button @click="switchView('import')" class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-5 font-semibold text-center transition active:scale-[0.97]"><span class="block text-2xl mb-1">📥</span>Import</button>
+            <button @click="switchView('favorites')" class="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-2xl py-5 font-semibold text-center transition active:scale-[0.97]"><span class="block text-2xl mb-1">⭐</span>Favorites</button>
+          </div>
+        </div>
+
+        <!-- ==================== READ ==================== -->
+        <div x-show="view==='read'">
+          <template x-if="!readWords.length">
+            <div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">📖</p><p>No words yet.</p><button @click="switchView('import')" class="text-indigo-500 underline mt-2">Import some</button></div>
+          </template>
+          <template x-for="w in readWords" :key="w.id">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-4 mb-3 flex items-start gap-3 transition active:scale-[0.99]">
+              <div class="flex-1 min-w-0">
+                <p class="font-bold text-lg" x-text="w.english_word"></p>
+                <p class="text-gray-500 dark:text-gray-400 mt-0.5" x-text="w.bangla_meaning"></p>
+              </div>
+              <div class="flex gap-1 shrink-0">
+                <button @click="readLater(w)" class="p-2 rounded-xl text-lg transition" :class="w.read_later?'bg-purple-100 dark:bg-purple-900/30 text-purple-500':'text-gray-300 dark:text-gray-600 hover:text-purple-400'">🕐</button>
+                <button @click="fav(w)" class="p-2 rounded-xl text-lg transition" :class="w.is_favorite?'bg-amber-100 dark:bg-amber-900/30 text-amber-500':'text-gray-300 dark:text-gray-600 hover:text-amber-400'">⭐</button>
+                <button @click="markRead(w)" class="p-2 rounded-xl text-sm font-bold transition" :class="w.status!=='unseen'?'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-500':'text-gray-300 dark:text-gray-600 hover:text-emerald-400'" x-text="w.status!=='unseen'?'✓':'○'"></button>
+              </div>
+            </div>
+          </template>
+          <div class="flex justify-center gap-4 mt-4" x-show="readTotal>readPerPage">
+            <button @click="readPage--;loadRead()" :disabled="readPage<=1" class="px-5 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 disabled:opacity-30 font-medium text-sm">← Prev</button>
+            <span class="self-center text-sm text-gray-400" x-text="readPage+' / '+Math.ceil(readTotal/readPerPage)"></span>
+            <button @click="readPage++;loadRead()" :disabled="readPage>=Math.ceil(readTotal/readPerPage)" class="px-5 py-2 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 disabled:opacity-30 font-medium text-sm">Next →</button>
+          </div>
+        </div>
+
+        <!-- ==================== PRACTICE ==================== -->
+        <div x-show="view==='practice'">
+          <div class="flex items-center gap-3 mb-4">
+            <div class="flex-1 bg-gray-200 dark:bg-gray-800 rounded-full h-2.5 overflow-hidden">
+              <div class="h-full rounded-full transition-all duration-500 ease-out"
+                   :style="'width:'+(practiceTotal?(practiceReviewed/practiceTotal*100):0)+'%;background:linear-gradient(90deg,#6366f1,#a855f7)'"></div>
+            </div>
+            <span class="text-sm font-medium tabular-nums" x-text="practiceReviewed+'/'+practiceTotal"></span>
+          </div>
+
+          <template x-if="practiceDone">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-8 text-center mt-4">
+              <p class="text-5xl mb-4">🎉</p>
+              <p class="text-xl font-bold">All done!</p>
+              <p class="text-sm text-gray-500 mt-2">No words left for practice.</p>
+              <div class="mt-6 flex justify-center gap-3">
+                <button @click="switchView('read')" class="px-6 py-2.5 bg-indigo-600 rounded-xl font-semibold text-sm text-white">Read Words</button>
+                <button @click="switchView('dashboard')" class="px-6 py-2.5 bg-gray-600 rounded-xl font-semibold text-sm text-white">Dashboard</button>
+              </div>
+            </div>
+          </template>
+
+          <template x-if="!practiceCurrent&&!practiceDone">
+            <div class="w-full bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-12 flex flex-col items-center justify-center min-h-[280px] mt-4 animate-pulse">
+              <div class="h-8 bg-gray-200 dark:bg-gray-800 rounded w-3/4 mb-6"></div>
+              <div class="h-4 bg-gray-200 dark:bg-gray-800 rounded w-1/2"></div>
+            </div>
+          </template>
+
+          <template x-if="practiceCurrent">
+            <div>
+              <div class="card-perspective w-full min-h-[280px] mt-4 cursor-pointer select-none" @click="if(!practiceFlipped)practiceFlipped=true">
+                <div class="card-flipper relative w-full min-h-[280px]" :class="{flipped:practiceFlipped}">
+                  <div class="card-face bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-8 sm:p-12 flex flex-col items-center justify-center">
+                    <p class="text-2xl sm:text-3xl font-bold text-center leading-relaxed" x-text="practiceCurrent.english_word"></p>
+                    <p class="text-sm text-gray-400 mt-6">Tap to reveal</p>
+                  </div>
+                  <div class="card-face card-back bg-white dark:bg-gray-900 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-800 p-8 sm:p-12 flex flex-col items-center justify-center">
+                    <p class="text-lg font-medium text-gray-500 mb-2" x-text="practiceCurrent.english_word"></p>
+                    <p class="text-2xl sm:text-3xl font-bold text-indigo-600 dark:text-indigo-400 text-center leading-relaxed" x-text="practiceCurrent.bangla_meaning"></p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="flex justify-center gap-2 mt-4">
+                <button @click="practiceReadLater(practiceCurrent)" class="p-2.5 rounded-xl text-lg transition" :class="practiceCurrent.read_later?'bg-purple-100 dark:bg-purple-900/30 text-purple-500':'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-purple-400'">🕐</button>
+                <button @click="practiceFav(practiceCurrent)" class="p-2.5 rounded-xl text-lg transition" :class="practiceCurrent.is_favorite?'bg-amber-100 dark:bg-amber-900/30 text-amber-500':'bg-gray-100 dark:bg-gray-800 text-gray-400 hover:text-amber-400'">⭐</button>
+              </div>
+
+              <template x-if="practiceFlipped">
+                <div class="flex justify-center gap-3 mt-6">
+                  <button @click="rate('hard')" class="flex-1 max-w-44 px-5 py-3.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white font-semibold rounded-xl transition active:scale-[0.97] text-sm">🔴 Hard</button>
+                  <button @click="rate('easy')" class="flex-1 max-w-44 px-5 py-3.5 bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-semibold rounded-xl transition active:scale-[0.97] text-sm">🟢 Easy</button>
+                </div>
+              </template>
+
+              <template x-if="!practiceFlipped">
+                <p class="text-center text-sm text-gray-400 mt-6">Tap the card to see the meaning</p>
+              </template>
+            </div>
+          </template>
+        </div>
+
+        <!-- ==================== IMPORT ==================== -->
+        <div x-show="view==='import'">
+          <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+            <p class="text-sm text-gray-500 mb-4">Upload a <code class="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">.txt</code> file with one word per line: <code class="text-xs bg-gray-100 dark:bg-gray-800 px-2 py-0.5 rounded">english - bangla</code></p>
+            <label class="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl py-10 cursor-pointer hover:border-indigo-400 transition active:bg-gray-50 dark:active:bg-gray-900">
+              <span class="text-4xl mb-3">📄</span>
+              <span class="text-sm font-medium text-gray-500">Choose file</span>
+              <input type="file" accept=".txt,.csv" class="hidden" @change="handleImport($event.target.files[0])">
+            </label>
+            <template x-if="importResult">
+              <div class="mt-4 p-4 rounded-xl" :class="importResult.ok?'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300':'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'">
+                <p class="font-semibold" x-text="importResult.msg"></p>
+                <p class="text-sm mt-1" x-show="importResult.errors?.length" x-text="importResult.errors.length+' errors'"></p>
+              </div>
+            </template>
+          </div>
+        </div>
+
+        <!-- ==================== FAVORITES ==================== -->
+        <div x-show="view==='favorites'">
+          <template x-if="!favWords.length">
+            <div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">⭐</p><p>No favorites yet.</p></div>
+          </template>
+          <template x-for="w in favWords" :key="w.id">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-4 mb-3 flex items-start gap-3">
+              <div class="flex-1 min-w-0"><p class="font-bold text-lg" x-text="w.english_word"></p><p class="text-gray-500 dark:text-gray-400 mt-0.5" x-text="w.bangla_meaning"></p></div>
+              <button @click="unfav(w)" class="p-2 rounded-xl bg-amber-100 dark:bg-amber-900/30 text-amber-500 shrink-0">⭐</button>
+            </div>
+          </template>
+        </div>
+
+        <!-- ==================== READ LATER ==================== -->
+        <div x-show="view==='read-later'">
+          <template x-if="!rlWords.length">
+            <div class="text-center py-12 text-gray-400"><p class="text-4xl mb-3">🕐</p><p>No bookmarks.</p></div>
+          </template>
+          <template x-for="w in rlWords" :key="w.id">
+            <div class="bg-white dark:bg-gray-900 rounded-2xl shadow-sm border border-gray-200 dark:border-gray-800 p-4 mb-3 flex items-start gap-3">
+              <div class="flex-1 min-w-0"><p class="font-bold text-lg" x-text="w.english_word"></p><p class="text-gray-500 dark:text-gray-400 mt-0.5" x-text="w.bangla_meaning"></p></div>
+              <button @click="unrl(w)" class="p-2 rounded-xl bg-purple-100 dark:bg-purple-900/30 text-purple-500 shrink-0">🕐</button>
+            </div>
+          </template>
+        </div>
+
+      </div>
+    </template>
+  </main>
+
+  <!-- Bottom nav -->
+  <nav class="fixed bottom-0 left-0 right-0 z-30 bg-gray-50/95 dark:bg-gray-950/95 backdrop-blur-lg border-t border-gray-200 dark:border-gray-800 pb-2">
+    <div class="max-w-lg mx-auto flex">
+      <button @click="switchView('dashboard')" class="flex-1 py-1.5 text-center transition" :class="view==='dashboard'?'text-indigo-500':'text-gray-400'">
+        <span class="block text-xl mb-0.5">🏠</span><span class="text-[10px] font-medium">Home</span>
+      </button>
+      <button @click="switchView('practice')" class="flex-1 py-1.5 text-center transition" :class="view==='practice'?'text-indigo-500':'text-gray-400'">
+        <span class="block text-xl mb-0.5">🎴</span><span class="text-[10px] font-medium">Practice</span>
+      </button>
+      <button @click="switchView('read')" class="flex-1 py-1.5 text-center transition" :class="view==='read'?'text-indigo-500':'text-gray-400'">
+        <span class="block text-xl mb-0.5">📖</span><span class="text-[10px] font-medium">Read</span>
+      </button>
+      <button @click="switchView('favorites')" class="flex-1 py-1.5 text-center transition" :class="view==='favorites'?'text-indigo-500':'text-gray-400'">
+        <span class="block text-xl mb-0.5">⭐</span><span class="text-[10px] font-medium">Stars</span>
+      </button>
+      <button @click="switchView('import')" class="flex-1 py-1.5 text-center transition" :class="view==='import'?'text-indigo-500':'text-gray-400'">
+        <span class="block text-xl mb-0.5">📥</span><span class="text-[10px] font-medium">Import</span>
+      </button>
+    </div>
+  </nav>
+
+</div>
+
+<script src="https://unpkg.com/dexie@3.2.6/dist/dexie.js"></script>
+<script>
+// ---- Database ----
+const db = new Dexie('VocabMasterDB');
+db.version(1).stores({
+  words: '++id, english_word, bangla_meaning, status, is_favorite, read_later, created_at',
+  studyLogs: '++id, date'
+});
+
+function today() { return new Date().toISOString().slice(0,10); }
+
+// ---- Main App ----
+function app() {
+  return {
+    // Nav
+    view: 'dashboard',
+    loading: true,
+    headerTitle: 'VocabMaster',
+
+    // Dashboard
+    stats: { total:0, mastered:0, learning:0, streak:0, todayReviewed:0 },
+
+    // Read
+    readWords: [],
+    readPage: 1,
+    readPerPage: 10,
+    readTotal: 0,
+
+    // Practice
+    practiceQueue: [],
+    practiceCurrent: null,
+    practiceReviewed: 0,
+    practiceTotal: 0,
+    practiceFlipped: false,
+    practiceDone: false,
+    practiceRefilling: false,
+
+    // Import
+    importResult: null,
+
+    // Favorites
+    favWords: [],
+
+    // Read Later
+    rlWords: [],
+
+    // ---- Init ----
+    async init() {
+      const hash = location.hash.slice(1) || 'dashboard';
+      if (['dashboard','read','practice','import','favorites','read-later'].includes(hash)) this.view = hash;
+      this.headerTitle = this.titleFor(this.view);
+      window.addEventListener('hashchange', () => {
+        const h = location.hash.slice(1) || 'dashboard';
+        if (['dashboard','read','practice','import','favorites','read-later'].includes(h)) this.switchView(h);
+      });
+      this.loading = false;
+      await this.switchView(this.view);
+    },
+
+    titleFor(v) {
+      return { dashboard:'VocabMaster', read:'Read', practice:'Practice', import:'Import', favorites:'Favorites', 'read-later':'Read Later' }[v];
+    },
+
+    async switchView(v) {
+      this.view = v;
+      location.hash = v;
+      this.headerTitle = this.titleFor(v);
+      this.loading = true;
+      if (v === 'dashboard') await this.loadDashboard();
+      else if (v === 'read') { this.readPage = 1; await this.loadRead(); }
+      else if (v === 'practice') await this.startPractice();
+      else if (v === 'favorites') await this.loadFavs();
+      else if (v === 'read-later') await this.loadRL();
+      this.loading = false;
+    },
+
+    // ---- Dashboard ----
+    async loadDashboard() {
+      this.stats.total = await db.words.count();
+      this.stats.mastered = await db.words.where('status').equals('mastered').count();
+      this.stats.learning = (await db.words.where('status').equals('learning').count()) + (await db.words.where('status').equals('reviewing').count());
+      const log = await db.studyLogs.where('date').equals(today()).first();
+      this.stats.todayReviewed = log ? log.words_reviewed : 0;
+      // Streak
+      const logs = await db.studyLogs.orderBy('date').reverse().toArray();
+      if (!logs.length) { this.stats.streak = 0; return; }
+      let s = 0;
+      for (let i = 0; i < logs.length; i++) {
+        const d = new Date(); d.setDate(d.getDate() - i);
+        if (logs[i].date === d.toISOString().slice(0,10)) s++; else break;
+      }
+      this.stats.streak = s;
+    },
+
+    // ---- Read ----
+    async loadRead() {
+      this.readTotal = await db.words.count();
+      const offset = (this.readPage - 1) * this.readPerPage;
+      this.readWords = await db.words.orderBy('id').reverse().offset(offset).limit(this.readPerPage).toArray();
+    },
+
+    async markRead(w) {
+      if (w.status === 'unseen') { w.status = 'learning'; await db.words.update(w.id, { status:'learning' }); }
+      this.readWords = [...this.readWords];
+    },
+
+    async readLater(w) { w.read_later = !w.read_later; await db.words.update(w.id, { read_later:!!w.read_later }); this.readWords = [...this.readWords]; },
+    async fav(w) { w.is_favorite = !w.is_favorite; await db.words.update(w.id, { is_favorite:!!w.is_favorite }); this.readWords = [...this.readWords]; },
+
+    // ---- Practice ----
+    async startPractice() {
+      this.practiceDone = false;
+      this.practiceFlipped = false;
+      this.practiceReviewed = 0;
+      this.practiceCurrent = null;
+      this.practiceQueue = [];
+      await this.refillPractice();
+      if (this.practiceQueue.length) {
+        this.practiceCurrent = this.practiceQueue.shift();
+        this.practiceTotal = (await db.words.where('status').anyOf('learning','reviewing').count()) + this.practiceReviewed;
+      } else {
+        this.practiceDone = true;
+      }
+    },
+
+    async refillPractice() {
+      if (this.practiceRefilling) return;
+      this.practiceRefilling = true;
+      const words = await db.words.where('status').anyOf('learning','reviewing').toArray();
+      for (let i = words.length-1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [words[i],words[j]] = [words[j],words[i]]; }
+      this.practiceQueue = [...this.practiceQueue, ...words.slice(0, 30)];
+      this.practiceRefilling = false;
+    },
+
+    async rate(rating) {
+      if (!this.practiceCurrent) return;
+      if (rating === 'easy') {
+        await db.words.update(this.practiceCurrent.id, { status:'mastered' });
+        this.practiceReviewed++;
+      }
+      const log = await db.studyLogs.where('date').equals(today()).first();
+      if (log) await db.studyLogs.update(log.id, { words_reviewed: log.words_reviewed + 1 });
+      else await db.studyLogs.add({ date: today(), words_reviewed: 1 });
+      this.nextWord();
+    },
+
+    nextWord() {
+      this.practiceFlipped = false;
+      if (this.practiceQueue.length) {
+        this.practiceCurrent = this.practiceQueue.shift();
+        if (this.practiceQueue.length < 10) this.refillPractice();
+        this.practiceTotal = this.practiceReviewed + this.practiceQueue.length + 1;
+      } else {
+        this.practiceCurrent = null;
+        this.practiceDone = true;
+      }
+    },
+
+    practiceReadLater(w) { w.read_later = !w.read_later; db.words.update(w.id, { read_later:!!w.read_later }); },
+    practiceFav(w) { w.is_favorite = !w.is_favorite; db.words.update(w.id, { is_favorite:!!w.is_favorite }); },
+
+    // ---- Import ----
+    async handleImport(file) {
+      if (!file) return;
+      this.importResult = null;
+      try {
+        const text = await file.text();
+        const lines = text.split('\n').filter(l => l.trim());
+        let added = 0, errors = [];
+        for (const line of lines) {
+          const parts = line.split(' - ');
+          if (parts.length < 2) { errors.push(line); continue; }
+          const eng = parts[0].trim(), bang = parts.slice(1).join(' - ').trim();
+          if (!eng || !bang) { errors.push(line); continue; }
+          const existing = await db.words.where('english_word').equals(eng).first();
+          if (existing) await db.words.update(existing.id, { bangla_meaning:bang, status:'learning' });
+          else await db.words.add({ english_word:eng, bangla_meaning:bang, status:'learning', is_favorite:0, read_later:0, created_at:new Date().toISOString() });
+          added++;
+        }
+        this.importResult = { ok:true, msg:'Imported '+added+' word'+(added>1?'s':'')+(errors.length?', '+errors.length+' skipped':'') };
+      } catch(e) {
+        this.importResult = { ok:false, msg:'Error reading file: '+e.message };
+      }
+    },
+
+    // ---- Favorites ----
+    async loadFavs() { this.favWords = await db.words.where('is_favorite').equals(1).toArray(); },
+    async unfav(w) { w.is_favorite = 0; await db.words.update(w.id, { is_favorite:0 }); this.favWords = this.favWords.filter(x => x.id !== w.id); },
+
+    // ---- Read Later ----
+    async loadRL() { this.rlWords = await db.words.where('read_later').equals(1).toArray(); },
+    async unrl(w) { w.read_later = 0; await db.words.update(w.id, { read_later:0 }); this.rlWords = this.rlWords.filter(x => x.id !== w.id); },
+  };
+}
+</script>
+</body>
+</html>
