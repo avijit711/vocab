@@ -2,14 +2,11 @@
 
 use Livewire\Attributes\Layout;
 use Livewire\Volt\Component;
-use Livewire\WithFileUploads;
 use App\Models\Word;
 use Illuminate\Support\Facades\Auth;
 
 new #[Layout('layouts.app')] class extends Component {
-    use WithFileUploads;
-
-    public $file;
+    public string $fileContent = '';
     public int $imported = 0;
     public int $updated = 0;
     public bool $done = false;
@@ -17,7 +14,7 @@ new #[Layout('layouts.app')] class extends Component {
     public function rules(): array
     {
         return [
-            'file' => 'required|file|mimes:txt|max:2048',
+            'fileContent' => 'required|string',
         ];
     }
 
@@ -25,7 +22,7 @@ new #[Layout('layouts.app')] class extends Component {
     {
         $this->validate();
 
-        $content = $this->file->get();
+        $content = base64_decode($this->fileContent);
         $lines = explode("\n", $content);
         $userId = Auth::id();
 
@@ -61,7 +58,7 @@ new #[Layout('layouts.app')] class extends Component {
         }
 
         $this->done = true;
-        $this->file = null;
+        $this->fileContent = '';
     }
 }; ?>
 
@@ -77,13 +74,25 @@ new #[Layout('layouts.app')] class extends Component {
                 <code class="text-indigo-600 dark:text-indigo-400">English Word - Bangla Meaning</code>
             </p>
 
-            <form wire:submit="import">
+            <form wire:submit="import" x-data="{ fileName: '' }">
                 <div class="flex items-center gap-4">
-                    <input type="file" wire:model="file" accept=".txt"
+                    <input type="file" accept=".txt"
+                           x-ref="fileInput"
+                           @change="
+                               const file = $refs.fileInput.files[0];
+                               if (!file) return;
+                               const reader = new FileReader();
+                               reader.onload = (e) => {
+                                   $wire.set('fileContent', e.target.result.split(',')[1]);
+                                   fileName = file.name;
+                               };
+                               reader.readAsDataURL(file);
+                           "
                            class="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 dark:file:bg-indigo-900/30 file:text-indigo-700 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-900/50">
+                    <span x-show="fileName" x-text="fileName" class="text-sm text-indigo-600 dark:text-indigo-400 truncate max-w-[200px]"></span>
                 </div>
 
-                @error('file')
+                @error('fileContent')
                     <p class="mt-2 text-sm text-red-600 dark:text-red-400">{{ $message }}</p>
                 @enderror
 
