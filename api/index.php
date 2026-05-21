@@ -9,6 +9,4 @@ if ($dbPath && !file_exists($dbPath) && str_starts_with($dbPath, '/tmp/')) {
     touch($dbPath);
 }
 
-$_SERVER['APP_RUNNING_IN_VERCEL'] = 'true';
-
 require __DIR__ . '/../public/index.php';
