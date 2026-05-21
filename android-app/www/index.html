@@ -11,8 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.svg">
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script>tailwind.config={darkMode:'class',theme:{extend:{}}}</script>
+  <link rel="stylesheet" href="css/app.css">
   <style>
     * { -webkit-tap-highlight-color: transparent; }
     html, body { overscroll-behavior: none; height: 100%; }
@@ -241,8 +240,8 @@
 
 </div>
 
-<script src="https://unpkg.com/dexie@3.2.6/dist/dexie.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+<script src="lib/dexie.js"></script>
+<script src="lib/alpine.min.js" defer></script>
 <script>
 // ---- Database ----
 const db = new Dexie('VocabMasterDB');

@@ -1,0 +1,16 @@
+{
+  "name": "VocabMaster",
+  "short_name": "VocabMaster",
+  "description": "Learn English-Bangla vocabulary offline",
+  "start_url": "/mobile-app/",
+  "scope": "/mobile-app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#030712",
+  "theme_color": "#1e1b4b",
+  "categories": ["education", "productivity"],
+  "icons": [
+    { "src": "icons/icon-192.svg", "sizes": "192x192", "type": "image/svg+xml", "purpose": "any maskable" },
+    { "src": "icons/icon-192.svg", "sizes": "512x512", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

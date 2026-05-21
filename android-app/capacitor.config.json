@@ -1,0 +1,16 @@
+{
+  "appId": "com.vocabmaster.app",
+  "appName": "VocabMaster",
+  "webDir": "www",
+  "server": {
+    "androidScheme": "https",
+    "allowNavigation": []
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#030712",
+      "androidScaleType": "CENTER_CROP"
+    }
+  }
+}
