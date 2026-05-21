@@ -1,11 +1,11 @@
 {
     "version": 2,
-    "framework": null,
+    "functions": {
+        "api/index.php": {
+            "runtime": "vercel-php@0.8.0"
+        }
+    },
     "builds": [
-        {
-            "src": "/api/index.php",
-            "use": "vercel-php@0.6.2"
-        },
         {
             "src": "/public/build/assets/**",
             "use": "@vercel/static"
@@ -23,11 +23,11 @@
     ],
     "env": {
         "APP_ENV": "production",
-        "APP_DEBUG": "true",
+        "APP_DEBUG": "false",
         "APP_URL": "https://vocab-ashy-sigma.vercel.app",
         "APP_NAME": "VocabMaster Pro",
         "LOG_CHANNEL": "stderr",
-        "LOG_LEVEL": "debug",
+        "LOG_LEVEL": "error",
         "CACHE_DRIVER": "array",
         "SESSION_DRIVER": "array",
         "QUEUE_CONNECTION": "sync",
