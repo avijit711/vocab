@@ -9,26 +9,6 @@
         {
             "src": "/public/build/assets/**",
             "use": "@vercel/static"
-        },
-        {
-            "src": "/public/favicon.ico",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "/public/robots.txt",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "/public/manifest.json",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "/public/sw.js",
-            "use": "@vercel/static"
-        },
-        {
-            "src": "/public/icons/(.*)",
-            "use": "@vercel/static"
         }
     ],
     "routes": [
@@ -37,37 +17,18 @@
             "dest": "/public/build/assets/$1"
         },
         {
-            "src": "/favicon.ico",
-            "dest": "/public/favicon.ico"
-        },
-        {
-            "src": "/robots.txt",
-            "dest": "/public/robots.txt"
-        },
-        {
-            "src": "/manifest.json",
-            "dest": "/public/manifest.json"
-        },
-        {
-            "src": "/sw.js",
-            "dest": "/public/sw.js"
-        },
-        {
-            "src": "/icons/(.*)",
-            "dest": "/public/icons/$1"
-        },
-        {
             "src": "/(.*)",
             "dest": "/api/index.php"
         }
     ],
+    "outputDirectory": "public",
     "env": {
         "APP_ENV": "production",
-        "APP_DEBUG": "false",
-        "APP_URL": "https://vocab.vercel.app",
+        "APP_DEBUG": "true",
+        "APP_URL": "https://vocab-ashy-sigma.vercel.app",
         "APP_NAME": "VocabMaster Pro",
         "LOG_CHANNEL": "stderr",
-        "LOG_LEVEL": "error",
+        "LOG_LEVEL": "debug",
         "CACHE_DRIVER": "array",
         "SESSION_DRIVER": "array",
         "QUEUE_CONNECTION": "sync",
