@@ -22,6 +22,10 @@ require __DIR__.'/../vendor/autoload.php';
 
 $app = require_once __DIR__.'/../bootstrap/app.php';
 
+if (getenv('DB_CONNECTION') === 'sqlite' && !\Illuminate\Support\Facades\Schema::hasTable('migrations')) {
+    $app->make(Illuminate\Contracts\Console\Kernel::class)->call('migrate', ['--force' => true]);
+}
+
 $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
 
 $response = $kernel->handle(
