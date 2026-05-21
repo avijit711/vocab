@@ -24,7 +24,9 @@ class ImportController extends Controller
         $lines = explode("\n", $content);
         $userId = Auth::id();
 
+        $seen = [];
         $words = [];
+        $totalLines = 0;
         foreach ($lines as $line) {
             $line = trim($line);
             if (empty($line)) continue;
@@ -38,7 +40,15 @@ class ImportController extends Controller
 
             if (empty($english) || empty($bangla)) continue;
 
-            $words[] = ['english' => $english, 'bangla' => $bangla];
+            $totalLines++;
+
+            if (isset($seen[$english])) {
+                $words[$seen[$english]]['bangla'] = $bangla;
+                continue;
+            }
+
+            $seen[$english] = count($words);
+            $words[] = ['english' => $english, 'bangla' => $bangla, 'line_number' => $totalLines];
         }
 
         if (empty($words)) {
@@ -63,7 +73,7 @@ class ImportController extends Controller
 
         $after = Word::where('user_id', $userId)->count();
         $imported = $after - $before;
-        $updated = count($words) - $imported;
+        $updated = $totalLines - $imported;
 
         return redirect()->route('words.import')
             ->with('imported', $imported)
