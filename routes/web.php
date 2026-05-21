@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use Livewire\Volt\Volt;
+use App\Http\Controllers\Word\ImportController;
 
 Route::view('/', 'welcome');
 
@@ -9,8 +10,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Volt::route('dashboard', 'pages.dashboard')
         ->name('dashboard');
 
-    Volt::route('words/import', 'pages.words.import')
+    Route::get('words/import', [ImportController::class, 'index'])
         ->name('words.import');
+    Route::post('words/import', [ImportController::class, 'store'])
+        ->name('words.import.store');
 
     Volt::route('words/read', 'pages.words.read')
         ->name('words.read');
