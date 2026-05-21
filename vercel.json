@@ -31,7 +31,7 @@
         "LOG_CHANNEL": "stderr",
         "LOG_LEVEL": "error",
         "CACHE_DRIVER": "array",
-        "SESSION_DRIVER": "array",
+        "SESSION_DRIVER": "cookie",
         "QUEUE_CONNECTION": "sync",
         "DB_CONNECTION": "sqlite",
         "DB_DATABASE": "/tmp/database.sqlite",
