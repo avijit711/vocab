@@ -45,6 +45,14 @@
             <main>
                 {{ $slot }}
             </main>
+
+            <footer class="border-t border-gray-200 dark:border-gray-700 py-6 mt-8">
+                <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+                    <p class="text-sm text-gray-400 dark:text-gray-500">
+                        &copy; {{ date('Y') }} VocabMaster Pro
+                    </p>
+                </div>
+            </footer>
         </div>
     </body>
 </html>

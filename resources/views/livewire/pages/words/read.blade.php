@@ -84,18 +84,6 @@ new #[Layout('layouts.app')] class extends Component {
                 {{ __('Read Mode') }}
             </h2>
             <div class="flex flex-wrap gap-2">
-                <button wire:click="markPageAsRead"
-                        class="px-4 py-2 bg-blue-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 transition">
-                    Mark Page as Read
-                </button>
-                <button wire:click="unmarkPage"
-                        class="px-4 py-2 bg-amber-500 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-amber-400 transition">
-                    Unmark Page
-                </button>
-                <button wire:click="markAllAsRead"
-                        class="px-4 py-2 bg-emerald-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-emerald-500 transition">
-                    Mark All as Read
-                </button>
                 <a href="{{ route('words.import') }}" wire:navigate
                    class="px-4 py-2 bg-indigo-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-indigo-500 transition">
                     + Import
@@ -174,6 +162,21 @@ new #[Layout('layouts.app')] class extends Component {
 
         <div class="mt-6">
             {{ $words->links() }}
+        </div>
+
+        <div class="flex flex-wrap gap-2 justify-center pt-4">
+            <button wire:click="markPageAsRead"
+                    class="px-4 py-2 bg-blue-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-blue-500 transition">
+                Mark Page as Read
+            </button>
+            <button wire:click="unmarkPage"
+                    class="px-4 py-2 bg-amber-500 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-amber-400 transition">
+                Unmark Page
+            </button>
+            <button wire:click="markAllAsRead"
+                    class="px-4 py-2 bg-emerald-600 border border-transparent rounded-lg font-semibold text-xs text-white uppercase tracking-widest hover:bg-emerald-500 transition">
+                Mark All as Read
+            </button>
         </div>
     </div>
 </div>
