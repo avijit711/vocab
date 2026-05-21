@@ -22,7 +22,7 @@ new #[Layout('layouts.app')] class extends Component {
         $words = Word::where('user_id', Auth::id())
             ->whereIn('status', ['learning', 'reviewing'])
             ->inRandomOrder()
-            ->limit(10)
+            ->limit(30)
             ->get();
 
         if ($words->isEmpty()) {
@@ -63,7 +63,7 @@ new #[Layout('layouts.app')] class extends Component {
         $words = Word::where('user_id', Auth::id())
             ->whereIn('status', ['learning', 'reviewing'])
             ->inRandomOrder()
-            ->limit(10)
+            ->limit(30)
             ->get();
 
         $this->total = Word::where('user_id', Auth::id())
@@ -137,7 +137,6 @@ new #[Layout('layouts.app')] class extends Component {
                         this.queue = @js($jsQueue);
                         this.reviewed = {{ $reviewed }};
                         this.total = {{ $total }};
-                        this.nextWord();
 
                         $wire.on('queue-refilled', (data) => {
                             if (data.done) {
@@ -153,6 +152,9 @@ new #[Layout('layouts.app')] class extends Component {
                             }
                             this.loading = false;
                         });
+
+                        this.nextWord();
+                        this.refillQueue();
                     },
 
                     nextWord() {
@@ -164,7 +166,7 @@ new #[Layout('layouts.app')] class extends Component {
                         }
                         this.currentWord = this.queue.shift();
                         this.flipped = false;
-                        if (this.queue.length < 3) {
+                        if (this.queue.length < 10) {
                             this.refillQueue();
                         }
                     },
