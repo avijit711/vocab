@@ -34,7 +34,6 @@
         "SESSION_DRIVER": "cookie",
         "QUEUE_CONNECTION": "sync",
         "DB_CONNECTION": "pgsql",
-        "DB_URL": "postgresql://YOUR_NEON_USER:YOUR_NEON_PASS@ep-XXXX.us-east-2.aws.neon.tech/neondb?sslmode=require",
         "APP_CONFIG_CACHE": "/tmp/config.php",
         "APP_EVENTS_CACHE": "/tmp/events.php",
         "APP_PACKAGES_CACHE": "/tmp/packages.php",
