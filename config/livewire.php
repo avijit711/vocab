@@ -1,11 +1,20 @@
 <?php
 
 return [
+
+    'class_namespace' => 'App\\Livewire',
+
+    'view_path' => resource_path('views/livewire'),
+
+    'layout' => 'components.layouts.app',
+
+    'lazy_placeholder' => null,
+
     'temporary_file_upload' => [
         'disk' => env('LIVEWIRE_TMP_DISK', 'vercel-tmp'),
+        'rules' => ['required', 'file', 'max:12288'],
         'directory' => 'livewire-tmp',
         'middleware' => 'throttle:60,1',
-        'rules' => ['required', 'file', 'max:12288'],
         'preview_mimes' => [
             'png', 'gif', 'bmp', 'svg', 'wav', 'mp4',
             'mov', 'avi', 'wmv', 'mp3', 'm4a',
@@ -14,4 +23,23 @@ return [
         'max_upload_time' => 5,
         'cleanup' => true,
     ],
+
+    'render_on_redirect' => false,
+
+    'legacy_model_binding' => false,
+
+    'inject_assets' => true,
+
+    'navigate' => [
+        'show_progress_bar' => true,
+        'progress_bar_color' => '#2299dd',
+    ],
+
+    'inject_morph_markers' => true,
+
+    'smart_wire_keys' => false,
+
+    'pagination_theme' => 'tailwind',
+
+    'release_token' => 'a',
 ];
